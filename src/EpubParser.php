@@ -1,5 +1,5 @@
 <?php
-namespace liuyang\epub;
+namespace lywzx\epub;
 
 
 use PHPUnit\Runner\Exception;
@@ -86,7 +86,7 @@ class EpubParser {
      * check file is validated
      * @throws \Exception
      */
-    public function fileCheck() {
+    private function fileCheck() {
         $this->open();
 
         $mimetype = $this->_getFileContentFromZipArchive('mimetype');
