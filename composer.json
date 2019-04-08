@@ -1,0 +1,51 @@
+{
+    "name": "liuyang/php-epub",
+    "description": "php epub parser",
+    "type": "library",
+    "keywords": [
+        "epub",
+        "parser"
+    ],
+    "homepage": "http://carbon.nesbot.com",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "liuyang",
+            "email": "liuyang@lyblog.net"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "liuyang\\epub\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
+    "minimum-stability": "dev",
+    "require": {
+        "php":">=5.4.0"
+    },
+    "scripts": {
+        "test": [
+            "@phpunit",
+            "@phpcs"
+        ],
+        "phpunit": "phpunit --verbose",
+        "phpcs": "php-cs-fixer fix -v --diff --dry-run",
+        "phpstan": "phpstan analyse --configuration phpstan.neon --level 3 src tests",
+        "phpmd": "phpmd src text /phpmd.xml",
+        "phpdoc": "php phpdoc.php"
+    },
+    "repositories": {
+        "packagist": {
+            "type": "composer",
+            "url": "https://packagist.laravel-china.org"
+        }
+    },
+    "require-dev": {
+        "phpunit/phpunit": "7.5.x-dev"
+    }
+}
