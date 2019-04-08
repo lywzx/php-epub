@@ -24,7 +24,7 @@ class EpubParser {
 
     /**
      * Relative (to $ebookDir) OPF (ePub files) dir
-     * @var type Files dir
+     * @var string Files dir
      */
     private $opfDir;
 
@@ -52,25 +52,31 @@ class EpubParser {
     private $toc;
 
     /**
+     * image extract static root
      * @var null|string
      */
-    private $password = null;
+    private $imageWebRoot = null;
+
+    /**
+     *
+     * @var null|string
+     */
+    private $linkWebRoot = null;
 
     /**
      * EpubParser constructor.
      * @param $filePath
-     * @param $password
-     * @throws \Exception
+     * @param null $imageWebRoot
+     * @param null $linkWebRoot
      */
-    public function __construct( $filePath, $password = null )
+    public function __construct( $filePath, $imageWebRoot = null, $linkWebRoot = null )
     {
         $this->filePath = $filePath;
+        $this->imageWebRoot = $imageWebRoot;
+        $this->linkWebRoot  = $linkWebRoot;
         $this->zipArchive = new \ZipArchive();
 
-        if ( HZip::isEncryptedZip($filePath) && is_null($password) ) {
-            throw new \Exception('the password is required');
-        }
-
+        // check file
         $this->fileCheck();
     }
 
@@ -81,20 +87,14 @@ class EpubParser {
      * @throws \Exception
      */
     public function fileCheck() {
-        $zip = $this->zipArchive;
-        $zip_status = $zip->open($this->filePath);
-        if ( $zip_status === true ) {
-            if (!is_null($this->password)) {
-                $zip->setPassword($this->password);
-            }
-            $fp = $zip->getStream('META-INF/container.xml');
-            if (!$fp) {
-                throw new \Exception("File is not validated ebook");
-            }
-        } else {
-            throw new \Exception("Failed opening archive: ". @$this->zipArchive->getStatusString(), $zip_status );
+        $this->open();
+
+        $mimetype = $this->_getFileContentFromZipArchive('mimetype');
+        if (strtolower($mimetype) !== 'application/epub+zip') {
+            throw new \Exception('The epub file is not validated');
         }
-        $zip->close();
+
+        $this->close();
     }
 
 
@@ -102,11 +102,15 @@ class EpubParser {
      * parse epub file info
      */
     public function parse(){
+        $this->open();
+
         $this->_getOPF();
         $this->_getDcData();
         $this->_getManifest();
         $this->_getSpine();
         $this->_getTOC();
+
+        $this->close();
     }
 
     // Private functions
@@ -119,7 +123,7 @@ class EpubParser {
         $buf = $this->_getFileContentFromZipArchive($file);
         $opfContents = simplexml_load_string($buf);
         $opfAttributes = $opfContents->rootfiles->rootfile->attributes();
-        $this->opfFile = (string) $opfAttributes[0]; // Typecasting to string to get rid of the XML object
+        $this->opfFile = (string) $opfAttributes->{'full-path'}; // Typecasting to string to get rid of the XML object
 
         // Set also the dir to the OPF (and ePub files)
         $opfDirParts = explode('/',$this->opfFile);
@@ -190,13 +194,7 @@ class EpubParser {
      * @throws \Exception
      */
     private function _getFileContentFromZipArchive($fileName) {
-        $zip = $this->zipArchive;
-        $zip->open($this->filePath);
-        if (!is_null($this->password)) {
-            $zip->setPassword($this->password);
-        }
-
-        $fp = $zip->getStream($fileName);
+        $fp = $this->zipArchive->getStream($fileName);
         if (!$fp) {
             throw new \Exception("Error: can't get stream to epub file");
         }
@@ -217,7 +215,6 @@ class EpubParser {
             printf("%08X", $stat['crc']); //expected CRC*/
         }
         fclose($fp);
-        $zip->close();
         return $buf;
     }
 
@@ -265,6 +262,23 @@ class EpubParser {
     }
 
     /**
+     * start open epub file
+     */
+    private function open() {
+        $zip_status = $this->zipArchive->open($this->filePath);
+        if ( $zip_status !== true ) {
+            throw new \Exception("Failed opening ebook: ". @$this->zipArchive->getStatusString(), $zip_status );
+        }
+    }
+
+    /**
+     * close epub file
+     */
+    private function close() {
+        $this->zipArchive->close();
+    }
+
+    /**
      * Retrieve the ToC
      * @return array Array with ToC Data
      */
@@ -280,19 +294,131 @@ class EpubParser {
         return $this->opfDir;
     }
 
+    /**
+     * get chapter html text
+     * @param $chapterId string chapterId
+     * @return string
+     * @throws \Exception
+     */
     public function getChapter($chapterId) {
+        $result = $this->getChapterRaw($chapterId);
 
+        $path = explode('/', $this->opfDir);
+
+        // remove linebreaks (no multi line matches in JS regex!)
+        $result = preg_replace("/\r?\n/", "\u0000", $result);
+
+        // keep only <body> contents
+        $match = [];
+        preg_match('/<body[^>]*?>(.*)<\/body[^>]*?>/i', $result, $match);
+        $result = trim($match[1]);
+
+        // remove <script> blocks if any
+        $result = preg_replace('/<script[^>]*?>(.*?)<\/script[^>]*?>/i', '', $result);
+
+        // remove <style> blocks if any
+        $result = preg_replace('/<style[^>]*?>(.*?)<\/style[^>]*?>/i', '', $result);
+
+        // remove onEvent handlers
+        $result = preg_replace_callback('/(\s)(on\w+)(\s*=\s*["\']?[^"\'\s>]*?["\'\s>])/', function($matches){
+            return $matches[1]."skip-".$matches[2].$matches[3];
+        }, $result);
+
+        // replace images
+        $result = preg_replace_callback('/(\ssrc\s*=\s*["\']?)([^"\'\s>]*?)(["\'\s>])/', function($matches) use($path){
+            $img = (new \ArrayObject($path))->getArrayCopy();
+            $img[] = $matches[2];
+            $img = implode('/', $img);
+
+            $element = null;
+            foreach ($this->manifest as $key => $value) {
+                if ($value === $img) {
+                    $element = $value;
+                    break;
+                }
+            }
+            if (!is_null($element)) {
+                return $matches[1].$this->imageWebRoot.$element->id.'/'.$img.$matches[3];
+            }
+            return '';
+        }, $result);
+
+        $result = preg_replace_callback('/(\shref\s*=\s*["\']?)([^"\'\s>]*?)(["\'\s>])/', function($matches) use($path){
+            $linkparts = isset($matches[2]) ?: explode($matches[2], "#");
+            $link      = (new \ArrayObject($path))->getArrayCopy();
+            $link[]    = array_shift($linkparts) ?? '';
+            $link      = trim(implode($link, '/'));
+            $element   = null;
+
+            foreach ($this->manifest as $key => $value) {
+                if(explode('#', $value['href'])[0] === $link) {
+                    $element = $value;
+                    break;
+                }
+            }
+
+            if (count($linkparts)) {
+                $link .= '#'.implode( '#',$linkparts);
+            }
+
+            // include only images from manifest
+            if ($element) {
+                return $matches[1].$this->linkWebRoot.$element['id']."/".$link.$matches[3];
+            }
+            return $matches[1].$matches[2].$matches[3];
+        }, $result);
+
+        return preg_replace("/\\\u0000/", "\n",  $result);
     }
 
+    /**
+     * get chapter html text
+     * @param $chapterId string chapterId
+     * @return string
+     * @throws \Exception
+     */
     public function getChapterRaw($chapterId) {
-
+        if (isset($this->manifest[$chapterId])) {
+            $chapter = $this->manifest[$chapterId];
+            if (!($chapter['media-type'] == "application/xhtml+xml" || $chapter['media-type'] == "image/svg+xml")) {
+                throw new \Exception('Invalid mime type for chapter');
+            }
+            $filePath = $chapter['href'];
+            $this->open();
+            $result = $this->_getFileContentFromZipArchive($this->opfDir.'/'.$filePath);
+            $this->close();
+            return $result;
+        }
+        throw new \Exception('File not found');
     }
 
+    /**
+     * @param $imageId
+     * @return string
+     * @throws \Exception
+     */
     public function getImage($imageId) {
-
+        if (isset($this->manifest[$imageId])) {
+            $image = $this->manifest[$imageId];
+            if (substr(trim(strtolower($image['media-type'] ?? "")),0, 6)  !=  "image/") {
+                throw new \Exception("Invalid mime type for image");
+            }
+            $this->open();
+            $result = $this->_getFileContentFromZipArchive($this->opfDir.'/'.$image['href']);
+            $this->close();
+            return $result;
+        }
+        throw new \Exception("file not found");
     }
 
     public function getFile($fileId) {
-
+        if (isset($this->manifest[$fileId])) {
+            $file = $this->manifest[$fileId];
+            $this->open();
+            $result = $this->_getFileContentFromZipArchive($this->opfDir.'/'.$file['href']);
+            $this->close();
+            return $result;
+        }
+        throw new \Exception("file not found");
     }
 }
