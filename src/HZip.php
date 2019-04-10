@@ -1,5 +1,5 @@
 <?php
-namespace liuyang\epub;
+namespace lywzx\epub;
 
 class HZip {
     /**
