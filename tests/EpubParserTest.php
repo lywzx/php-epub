@@ -11,11 +11,31 @@ use PHPUnit\Framework\TestCase;
 use lywzx\epub\EpubParser;
 
 
-class EpubParserTest extends TestCase
+class EpubParserExceptionTest extends TestCase
 {
-    public function testParse() {
-        $epub = new EpubParser('./alice.epub');
-        $epub->parse();
 
+    /**
+     * @expectedException \Exception
+     * @expectedExceptionMessage Failed opening ebook:
+     */
+    public function testFileNotExistsException() {
+        $epub = new EpubParser('./a.epub');
+    }
+
+    /**
+     * @expectedException \Exception
+     * @expectedExceptionMessage Error: can't get stream to epub file
+     */
+    public function testFileNotValidatedEpubFileException() {
+        $epub = new EpubParser('./not_validated.epub');
+    }
+
+
+    /**
+     * @expectedException \Exception
+     * @expectedExceptionMessage The epub file is not validated
+     */
+    public function testFileNotValidatedEpubFileMimeTypeException() {
+        $epub = new EpubParser('./not_validated_mimetype.epub');
     }
 }

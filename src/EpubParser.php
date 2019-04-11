@@ -68,6 +68,7 @@ class EpubParser {
      * @param $filePath
      * @param null $imageWebRoot
      * @param null $linkWebRoot
+     * @throws \Exception
      */
     public function __construct( $filePath, $imageWebRoot = null, $linkWebRoot = null )
     {
@@ -100,6 +101,7 @@ class EpubParser {
 
     /**
      * parse epub file info
+     * @throws \Exception
      */
     public function parse(){
         $this->open();
@@ -114,9 +116,11 @@ class EpubParser {
     }
 
     // Private functions
+
     /**
      * Get the path to the OPF file from the META-INF/container.xml file
      * @return string Relative path to the OPF file
+     * @throws \Exception
      */
     private function _getOPF() {
         $file = 'META-INF/container.xml';
@@ -132,16 +136,20 @@ class EpubParser {
 
         return $this->opfFile;
     }
+
     /**
      * Read the metadata DC details (title, author, etc.) from the OPF file
+     * @throws \Exception
      */
     private function _getDcData() {
         $buf = $this->_getFileContentFromZipArchive($this->opfFile);
         $opfContents = simplexml_load_string($buf);
         $this->dcElements = (array) $opfContents->metadata->children('dc', true);
     }
+
     /**
      * Gets the manifest data from the OPF file
+     * @throws \Exception
      */
     private function _getManifest() {
         $buf = $this->_getFileContentFromZipArchive($this->opfFile);
@@ -155,8 +163,10 @@ class EpubParser {
             $iManifest++;
         }
     }
+
     /**
      * Get the spine data from the OPF file
+     * @throws \Exception
      */
     private function _getSpine() {
         $buf = $this->_getFileContentFromZipArchive($this->opfFile);
@@ -170,6 +180,7 @@ class EpubParser {
 
     /**
      * Build an array with the TOC
+     * @throws \Exception
      */
     private function _getTOC() {
         $tocFile = $this->getManifest('ncx');
@@ -263,6 +274,7 @@ class EpubParser {
 
     /**
      * start open epub file
+     * @throws \Exception
      */
     private function open() {
         $zip_status = $this->zipArchive->open($this->filePath);
@@ -415,7 +427,10 @@ class EpubParser {
         if (isset($this->manifest[$fileId])) {
             $file = $this->manifest[$fileId];
             $this->open();
-            $result = $this->_getFileContentFromZipArchive($this->opfDir.'/'.$file['href']);
+            try {
+                $result = $this->_getFileContentFromZipArchive($this->opfDir . '/' . $file['href']);
+            } catch (\Exception $e) {
+            }
             $this->close();
             return $result;
         }
