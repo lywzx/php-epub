@@ -24,7 +24,7 @@ php-epub is a php library, for epub reader and maker. We can use it to read the 
 
 ### Without Composer
 
-Why are you not using composer? Download the php-epub (latest release)[https://github.com/lywzx/php-epub/releases] and put the contents of the ZIP archive into a directory in your project. Then require the file `autoload.php` to get all classes and dependencies loaded on need.
+Why are you not using composer? Download the php-epub [latest release](https://github.com/lywzx/php-epub/releases) and put the contents of the ZIP archive into a directory in your project. Then require the file `autoload.php` to get all classes and dependencies loaded on need.
 
 >     <?php
 >           require_once 'path_to_php-epub_directory/autoload.php';
