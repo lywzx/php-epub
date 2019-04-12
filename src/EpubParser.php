@@ -187,13 +187,27 @@ class EpubParser {
         $buf = $this->_getFileContentFromZipArchive($this->opfDir.'/'.$tocFile['href']);
         $tocContents = simplexml_load_string($buf);
 
-        $toc = array();
-        foreach($tocContents->navMap->navPoint AS $navPoint) {
-            $navPointData = $navPoint->attributes();
-            $toc[(string)$navPointData['playOrder']]['id'] = (string)$navPointData['id'];
-            $toc[(string)$navPointData['playOrder']]['naam'] = (string)$navPoint->navLabel->text;
-            $toc[(string)$navPointData['playOrder']]['src'] = (string)$navPoint->content->attributes();
-        }
+        $callback = function($navPoints) use(& $callback) {
+            $ret = [];
+            foreach ($navPoints as $navPoint) {
+                $attributes = $navPoint->attributes();
+                $payOrder = (string) $attributes['playOrder'];
+                $src = (string) $navPoint->content->attributes();
+                $ret[$payOrder] = [
+                    'id' => (string) $attributes['id'],
+                    'naam' => (string) $navPoint->navLabel->text,
+                    'src'  => $src,
+                    'page_id' => strpos($src, "#") ? explode("#", $src)[1] : null
+                ];
+
+                if (isset($navPoint->navPoint) && !empty($navPoint->navPoint)) {
+                    $ret[$payOrder]['children'] = $callback($navPoint->navPoint);
+                }
+            }
+            return $ret;
+        };
+
+        $toc = $callback($tocContents->navMap->navPoint);
 
         $this->toc = $toc;
     }
@@ -344,7 +358,8 @@ class EpubParser {
 
             $element = null;
             foreach ($this->manifest as $key => $value) {
-                if ($value === $img) {
+                $mainestUrl = $this->opfDir.'/'.$value['href'];
+                if ($mainestUrl === $img) {
                     $element = $value;
                     break;
                 }
@@ -423,6 +438,11 @@ class EpubParser {
         throw new \Exception("file not found");
     }
 
+    /**
+     * @param $fileId
+     * @return string
+     * @throws \Exception
+     */
     public function getFile($fileId) {
         if (isset($this->manifest[$fileId])) {
             $file = $this->manifest[$fileId];
@@ -435,5 +455,14 @@ class EpubParser {
             return $result;
         }
         throw new \Exception("file not found");
+    }
+
+    /**
+     * @param $path
+     * @param null $fileType
+     * @param bool $except
+     */
+    public function extract($path, $fileType = null, $except = false) {
+
     }
 }
