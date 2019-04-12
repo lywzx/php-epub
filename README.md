@@ -38,15 +38,15 @@ Why are you not using composer? Download the php-epub (latest release)[https://g
 
 get ebook metinfo
 
->    $epubParser = new EpubParser('./alice.epub');  // open file and check file is a validated epub
+>     $epubParser = new EpubParser('./alice.epub');  // open file and check file is a validated epub
 >    
->    $epubParser->parse();                          // parser file
+>     $epubParser->parse();                          // parser file
 >    
->    var_dump($epubParser->getTOC());                // you will get the book category tree, e.g 1.0
+>     var_dump($epubParser->getTOC());                // you will get the book category tree, e.g 1.0
 >    
->    var_dump($epubParser->getDcItem());              // you will get the book meta info, e.g 1.1
+>     var_dump($epubParser->getDcItem());              // you will get the book meta info, e.g 1.1
 >
->    var_dump($epubParser->getDcItem('rights'))       // Public domain in the USA.
+>     var_dump($epubParser->getDcItem('rights'))       // Public domain in the USA.
 
 e.g 1.0
 
