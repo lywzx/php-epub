@@ -68,6 +68,7 @@ class EpubParser {
      * @param $filePath
      * @param null $imageWebRoot
      * @param null $linkWebRoot
+     * @throws \Exception
      */
     public function __construct( $filePath, $imageWebRoot = null, $linkWebRoot = null )
     {
@@ -100,6 +101,7 @@ class EpubParser {
 
     /**
      * parse epub file info
+     * @throws \Exception
      */
     public function parse(){
         $this->open();
@@ -114,9 +116,11 @@ class EpubParser {
     }
 
     // Private functions
+
     /**
      * Get the path to the OPF file from the META-INF/container.xml file
      * @return string Relative path to the OPF file
+     * @throws \Exception
      */
     private function _getOPF() {
         $file = 'META-INF/container.xml';
@@ -132,16 +136,20 @@ class EpubParser {
 
         return $this->opfFile;
     }
+
     /**
      * Read the metadata DC details (title, author, etc.) from the OPF file
+     * @throws \Exception
      */
     private function _getDcData() {
         $buf = $this->_getFileContentFromZipArchive($this->opfFile);
         $opfContents = simplexml_load_string($buf);
         $this->dcElements = (array) $opfContents->metadata->children('dc', true);
     }
+
     /**
      * Gets the manifest data from the OPF file
+     * @throws \Exception
      */
     private function _getManifest() {
         $buf = $this->_getFileContentFromZipArchive($this->opfFile);
@@ -155,8 +163,10 @@ class EpubParser {
             $iManifest++;
         }
     }
+
     /**
      * Get the spine data from the OPF file
+     * @throws \Exception
      */
     private function _getSpine() {
         $buf = $this->_getFileContentFromZipArchive($this->opfFile);
@@ -170,19 +180,34 @@ class EpubParser {
 
     /**
      * Build an array with the TOC
+     * @throws \Exception
      */
     private function _getTOC() {
         $tocFile = $this->getManifest('ncx');
         $buf = $this->_getFileContentFromZipArchive($this->opfDir.'/'.$tocFile['href']);
         $tocContents = simplexml_load_string($buf);
 
-        $toc = array();
-        foreach($tocContents->navMap->navPoint AS $navPoint) {
-            $navPointData = $navPoint->attributes();
-            $toc[(string)$navPointData['playOrder']]['id'] = (string)$navPointData['id'];
-            $toc[(string)$navPointData['playOrder']]['naam'] = (string)$navPoint->navLabel->text;
-            $toc[(string)$navPointData['playOrder']]['src'] = (string)$navPoint->content->attributes();
-        }
+        $callback = function($navPoints) use(& $callback) {
+            $ret = [];
+            foreach ($navPoints as $navPoint) {
+                $attributes = $navPoint->attributes();
+                $payOrder = (string) $attributes['playOrder'];
+                $src = (string) $navPoint->content->attributes();
+                $ret[$payOrder] = [
+                    'id' => (string) $attributes['id'],
+                    'naam' => (string) $navPoint->navLabel->text,
+                    'src'  => $src,
+                    'page_id' => strpos($src, "#") ? explode("#", $src)[1] : null
+                ];
+
+                if (isset($navPoint->navPoint) && !empty($navPoint->navPoint)) {
+                    $ret[$payOrder]['children'] = $callback($navPoint->navPoint);
+                }
+            }
+            return $ret;
+        };
+
+        $toc = $callback($tocContents->navMap->navPoint);
 
         $this->toc = $toc;
     }
@@ -263,6 +288,7 @@ class EpubParser {
 
     /**
      * start open epub file
+     * @throws \Exception
      */
     private function open() {
         $zip_status = $this->zipArchive->open($this->filePath);
@@ -332,7 +358,8 @@ class EpubParser {
 
             $element = null;
             foreach ($this->manifest as $key => $value) {
-                if ($value === $img) {
+                $mainestUrl = $this->opfDir.'/'.$value['href'];
+                if ($mainestUrl === $img) {
                     $element = $value;
                     break;
                 }
@@ -411,14 +438,31 @@ class EpubParser {
         throw new \Exception("file not found");
     }
 
+    /**
+     * @param $fileId
+     * @return string
+     * @throws \Exception
+     */
     public function getFile($fileId) {
         if (isset($this->manifest[$fileId])) {
             $file = $this->manifest[$fileId];
             $this->open();
-            $result = $this->_getFileContentFromZipArchive($this->opfDir.'/'.$file['href']);
+            try {
+                $result = $this->_getFileContentFromZipArchive($this->opfDir . '/' . $file['href']);
+            } catch (\Exception $e) {
+            }
             $this->close();
             return $result;
         }
         throw new \Exception("file not found");
+    }
+
+    /**
+     * @param $path
+     * @param null $fileType
+     * @param bool $except
+     */
+    public function extract($path, $fileType = null, $except = false) {
+
     }
 }
