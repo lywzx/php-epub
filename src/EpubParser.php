@@ -365,7 +365,7 @@ class EpubParser {
                 }
             }
             if (!is_null($element)) {
-                return $matches[1].$this->imageWebRoot.$element->id.'/'.$img.$matches[3];
+                return $matches[1].$this->imageWebRoot.'/'.$img.$matches[3];
             }
             return '';
         }, $result);
@@ -458,11 +458,25 @@ class EpubParser {
     }
 
     /**
-     * @param $path
-     * @param null $fileType
+     * @param $path the epub file extract destination
+     * @param null|array $fileType file mimetype will extract or except
      * @param bool $except
+     * @throws \Exception
      */
     public function extract($path, $fileType = null, $except = false) {
+        if ( !is_dir($path) ) {
+            throw new \Exception('invalid folder given!');
+        }
+        $this->open();
 
+        // TODO limit fileType and except and replace path
+
+        if ( !is_null($fileType) ) {
+
+        }
+
+        $this->zipArchive->extractTo($path);
+
+        $this->close();
     }
 }
