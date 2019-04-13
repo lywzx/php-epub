@@ -275,12 +275,16 @@ class EpubParser {
 
     /**
      * Get the specified manifest by type
-     * @param string $type The manifest type
+     * @param string $pattern The manifest type
      * @return string|boolean String when manifest item exists, otherwise false
      */
-    public function getManifestByType($type) {
-        $ret = array_filter($this->manifest, function($manifest) use($type) {
-            return $manifest['media-type'] === $type;
+    public function getManifestByType($pattern) {
+        $isRegExp =  @preg_match($pattern, '') !== FALSE;
+        $ret = array_filter($this->manifest, function($manifest) use($pattern, $isRegExp) {
+            if ($isRegExp) {
+                return preg_match($pattern, $manifest['media-type']);
+            }
+            return $manifest['media-type'] === $pattern;
         });
 
         return (count($ret) == 0) ? false : $ret;
@@ -459,7 +463,7 @@ class EpubParser {
 
     /**
      * @param $path the epub file extract destination
-     * @param null|array $fileType file mimetype will extract or except
+     * @param null|array|string $fileType file mimetype will extract or except
      * @param bool $except
      * @throws \Exception
      */
@@ -469,13 +473,32 @@ class EpubParser {
         }
         $this->open();
 
-        // TODO limit fileType and except and replace path
-
-        if ( !is_null($fileType) ) {
-
+        $allMainfest = array_map(function($item) {
+            return $this->opfDir.'/'.$item['href'];
+        }, $this->manifest);
+        $fileLimit = null;
+        if ( !is_null($fileType) && is_string($fileType)) {
+            $mainfest = $this->getManifestByType($fileType);
+            if ( $mainfest !== false ) {
+                $fileLimit = array_map(function($item) {
+                    return $this->opfDir.'/'.$item['href'];
+                }, $mainfest);
+            }
+        } else if (is_array($fileType)) {
+            $fileLimit = $fileType;
         }
 
-        $this->zipArchive->extractTo($path);
+        if ($except === true && !is_null($fileLimit)) {
+            $fileLimit = array_diff($allMainfest, $fileLimit);
+        }
+
+        if (is_null($fileLimit)) {
+            $this->zipArchive->extractTo($path);
+        } else {
+            $this->zipArchive->extractTo($path, array_values($fileLimit));
+        }
+
+        // TODO to resolve path replace
 
         $this->close();
     }
