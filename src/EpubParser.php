@@ -1,9 +1,6 @@
 <?php
 namespace lywzx\epub;
 
-
-use PHPUnit\Runner\Exception;
-
 class EpubParser {
 
     /**
@@ -193,11 +190,13 @@ class EpubParser {
                 $attributes = $navPoint->attributes();
                 $payOrder = (string) $attributes['playOrder'];
                 $src = (string) $navPoint->content->attributes();
+                $explodeUrl = strpos($src, "#") ? explode("#", $src) : [$src, null];
                 $ret[$payOrder] = [
                     'id' => (string) $attributes['id'],
                     'naam' => (string) $navPoint->navLabel->text,
+                    'file_name' => $explodeUrl[0],
                     'src'  => $src,
-                    'page_id' => strpos($src, "#") ? explode("#", $src)[1] : null
+                    'page_id' => $explodeUrl[1]
                 ];
 
                 if (isset($navPoint->navPoint) && !empty($navPoint->navPoint)) {
@@ -498,8 +497,56 @@ class EpubParser {
             $this->zipArchive->extractTo($path, array_values($fileLimit));
         }
 
-        // TODO to resolve path replace
+        $needReplacePath = array_values(array_map(function($item) {
+            return $this->opfDir.'/'.$item['href'];
+        }, array_filter($this->manifest, function($item) {
+            return $item['media-type'] === 'application/xhtml+xml';
+        })));
+
+
+        if (!is_null($fileLimit)) {
+            $needReplacePath = array_intersect($needReplacePath, $fileLimit);
+        }
+
+        foreach ($needReplacePath as $file) {
+            $this->_replaceExtractFile( implode(DIRECTORY_SEPARATOR, [rtrim($path, '/'), $file]));
+        }
 
         $this->close();
+    }
+
+
+    /**
+     * @param $realPath
+     * @throws \Exception
+     */
+    private function _replaceExtractFile($realPath) {
+        if ( file_exists($realPath) && is_file($realPath) && is_readable($realPath) && is_writable($realPath)) {
+            $str = file_get_contents($realPath);
+            $path = explode('/', $this->opfDir);
+
+            $str = preg_replace_callback('/(\ssrc\s*=\s*["\']?)([^"\'\s>]*?)(["\'\s>])/', function($matches) use($path){
+                $img = (new \ArrayObject($path))->getArrayCopy();
+                $img[] = $matches[2];
+                $img = implode('/', $img);
+
+                $element = null;
+                foreach ($this->manifest as $key => $value) {
+                    $mainestUrl = $this->opfDir.'/'.$value['href'];
+                    if ($mainestUrl === $img) {
+                        $element = $value;
+                        break;
+                    }
+                }
+                if (!is_null($element)) {
+                    return $matches[1].$this->imageWebRoot.'/'.$img.$matches[3];
+                }
+                return '';
+            }, $str);
+
+            file_put_contents($realPath, $str);
+        } else {
+            throw new \Exception("change $realPath error");
+        }
     }
 }
