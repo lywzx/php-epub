@@ -18,3 +18,6 @@ var_dump($parse->getManifest('item24'));
 
 // get mainfest by type
 var_dump($parse->getManifestByType('application/xhtml+xml'));
+
+// match regexp
+var_dump($parse->getManifestByType('/image\/\w+/'));
