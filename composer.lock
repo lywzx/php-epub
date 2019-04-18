@@ -4,20 +4,20 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "bed332ca4cb1a7bc91fb685d075acf40",
+    "content-hash": "a6c98bef14f55563699ba8f6609b5c24",
     "packages": [
         {
             "name": "erusev/parsedown",
-            "version": "dev-master",
+            "version": "1.7.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/erusev/parsedown.git",
-                "reference": "bfaa76d370ecfae6fac85b30c15b90cc23cce895"
+                "reference": "92e9c27ba0e74b8b028b111d1b6f956a15c01fc1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/erusev/parsedown/zipball/bfaa76d370ecfae6fac85b30c15b90cc23cce895",
-                "reference": "bfaa76d370ecfae6fac85b30c15b90cc23cce895",
+                "url": "https://api.github.com/repos/erusev/parsedown/zipball/92e9c27ba0e74b8b028b111d1b6f956a15c01fc1",
+                "reference": "92e9c27ba0e74b8b028b111d1b6f956a15c01fc1",
                 "shasum": "",
                 "mirrors": [
                     {
@@ -56,7 +56,7 @@
                 "markdown",
                 "parser"
             ],
-            "time": "2019-04-07T15:36:22+00:00"
+            "time": "2018-03-08T01:11:30+00:00"
         }
     ],
     "packages-dev": [
@@ -1595,12 +1595,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/squizlabs/PHP_CodeSniffer.git",
-                "reference": "dd3f6e0813e0c67a2a30c53abc724377cb6db2f2"
+                "reference": "1d7c6576a578fb57723c8c0fbc716cb88dae4f13"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/squizlabs/PHP_CodeSniffer/zipball/dd3f6e0813e0c67a2a30c53abc724377cb6db2f2",
-                "reference": "dd3f6e0813e0c67a2a30c53abc724377cb6db2f2",
+                "url": "https://api.github.com/repos/squizlabs/PHP_CodeSniffer/zipball/1d7c6576a578fb57723c8c0fbc716cb88dae4f13",
+                "reference": "1d7c6576a578fb57723c8c0fbc716cb88dae4f13",
                 "shasum": "",
                 "mirrors": [
                     {
@@ -1644,7 +1644,7 @@
                 "phpcs",
                 "standards"
             ],
-            "time": "2019-04-03T04:26:52+00:00"
+            "time": "2019-04-16T03:35:30+00:00"
         },
         {
             "name": "symfony/polyfill-ctype",
@@ -1816,9 +1816,7 @@
     ],
     "aliases": [],
     "minimum-stability": "dev",
-    "stability-flags": {
-        "erusev/parsedown": 20
-    },
+    "stability-flags": [],
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {

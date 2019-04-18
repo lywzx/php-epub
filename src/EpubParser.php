@@ -61,6 +61,11 @@ class EpubParser {
     private $linkWebRoot = null;
 
     /**
+     * @var string
+     */
+    private $directorySeparator = '/';
+
+    /**
      * EpubParser constructor.
      * @param $filePath
      * @param null $imageWebRoot
@@ -78,6 +83,22 @@ class EpubParser {
         $this->fileCheck();
     }
 
+
+    /**
+     * @return array
+     */
+    public function __sleep()
+    {
+        return [];
+    }
+
+    /**
+     *
+     */
+    public function __wakeup()
+    {
+        // TODO: Implement __wakeup() method.
+    }
 
 
     /**
@@ -120,16 +141,16 @@ class EpubParser {
      * @throws \Exception
      */
     private function _getOPF() {
-        $file = 'META-INF/container.xml';
+        $file = "META-INF".$this->directorySeparator."container.xml";
         $buf = $this->_getFileContentFromZipArchive($file);
         $opfContents = simplexml_load_string($buf);
         $opfAttributes = $opfContents->rootfiles->rootfile->attributes();
         $this->opfFile = (string) $opfAttributes->{'full-path'}; // Typecasting to string to get rid of the XML object
 
         // Set also the dir to the OPF (and ePub files)
-        $opfDirParts = explode('/',$this->opfFile);
+        $opfDirParts = explode($this->directorySeparator,$this->opfFile);
         unset($opfDirParts[(count($opfDirParts)-1)]); // remove the last part (it's the .opf file itself)
-        $this->opfDir = implode('/',$opfDirParts);
+        $this->opfDir = implode($this->directorySeparator, $opfDirParts);
 
         return $this->opfFile;
     }
@@ -155,7 +176,7 @@ class EpubParser {
         foreach ($opfContents->manifest->item AS $item) {
             $attr = $item->attributes();
             $id = (string) $attr->id;
-            $this->manifest[$id]['href'] = (string) $attr->href;
+            $this->manifest[$id]['href'] = $this->getFileRealPath((string) $attr->href);
             $this->manifest[$id]['media-type'] = (string) $attr->{'media-type'};
             $iManifest++;
         }
@@ -181,7 +202,7 @@ class EpubParser {
      */
     private function _getTOC() {
         $tocFile = $this->getManifest('ncx');
-        $buf = $this->_getFileContentFromZipArchive($this->opfDir.'/'.$tocFile['href']);
+        $buf = $this->_getFileContentFromZipArchive($tocFile['href']);
         $tocContents = simplexml_load_string($buf);
 
         $callback = function($navPoints) use(& $callback) {
@@ -189,11 +210,11 @@ class EpubParser {
             foreach ($navPoints as $navPoint) {
                 $attributes = $navPoint->attributes();
                 $payOrder = (string) $attributes['playOrder'];
-                $src = (string) $navPoint->content->attributes();
+                $src = $this->getFileRealPath((string) $navPoint->content->attributes());
                 $explodeUrl = strpos($src, "#") ? explode("#", $src) : [$src, null];
                 $ret[$payOrder] = [
                     'id' => (string) $attributes['id'],
-                    'naam' => (string) $navPoint->navLabel->text,
+                    'name' => (string) $navPoint->navLabel->text,
                     'file_name' => $explodeUrl[0],
                     'src'  => $src,
                     'page_id' => $explodeUrl[1]
@@ -275,7 +296,7 @@ class EpubParser {
     /**
      * Get the specified manifest by type
      * @param string $pattern The manifest type
-     * @return string|boolean String when manifest item exists, otherwise false
+     * @return string|boolean|array String when manifest item exists, otherwise false
      */
     public function getManifestByType($pattern) {
         $isRegExp =  @preg_match($pattern, '') !== FALSE;
@@ -316,10 +337,24 @@ class EpubParser {
     }
 
     /**
+     * get the path relative the file root
+     * @param $href string
+     * @return string
+     */
+    private function getFileRealPath($href){
+        $opfDir = $this->opfDir;
+        $href   = str_replace(array('/', '\\'), $this->directorySeparator, $href);
+
+        $path = [rtrim($opfDir, $this->directorySeparator), ltrim($href, $this->directorySeparator)];
+
+        return implode($this->directorySeparator, array_filter($path));
+    }
+
+    /**
      * Returns the OPF/Data dir
      * @return string The OPF/data dir
      */
-    public function getOPFDir() {
+    private function getOPFDir() {
         return $this->opfDir;
     }
 
@@ -332,7 +367,7 @@ class EpubParser {
     public function getChapter($chapterId) {
         $result = $this->getChapterRaw($chapterId);
 
-        $path = explode('/', $this->opfDir);
+        $path = explode($this->directorySeparator, $this->opfDir);
 
         // remove linebreaks (no multi line matches in JS regex!)
         $result = preg_replace("/\r?\n/", "\u0000", $result);
@@ -361,7 +396,7 @@ class EpubParser {
 
             $element = null;
             foreach ($this->manifest as $key => $value) {
-                $mainestUrl = $this->opfDir.'/'.$value['href'];
+                $mainestUrl = $value['href'];
                 if ($mainestUrl === $img) {
                     $element = $value;
                     break;
@@ -415,7 +450,7 @@ class EpubParser {
             }
             $filePath = $chapter['href'];
             $this->open();
-            $result = $this->_getFileContentFromZipArchive($this->opfDir.'/'.$filePath);
+            $result = $this->_getFileContentFromZipArchive($filePath);
             $this->close();
             return $result;
         }
@@ -434,7 +469,7 @@ class EpubParser {
                 throw new \Exception("Invalid mime type for image");
             }
             $this->open();
-            $result = $this->_getFileContentFromZipArchive($this->opfDir.'/'.$image['href']);
+            $result = $this->_getFileContentFromZipArchive($image['href']);
             $this->close();
             return $result;
         }
@@ -451,7 +486,7 @@ class EpubParser {
             $file = $this->manifest[$fileId];
             $this->open();
             try {
-                $result = $this->_getFileContentFromZipArchive($this->opfDir . '/' . $file['href']);
+                $result = $this->_getFileContentFromZipArchive( $file['href']);
             } catch (\Exception $e) {
             }
             $this->close();
@@ -472,16 +507,12 @@ class EpubParser {
         }
         $this->open();
 
-        $allMainfest = array_map(function($item) {
-            return $this->opfDir.'/'.$item['href'];
-        }, $this->manifest);
+        $allMainfest = $this->manifest;
         $fileLimit = null;
         if ( !is_null($fileType) && is_string($fileType)) {
             $mainfest = $this->getManifestByType($fileType);
             if ( $mainfest !== false ) {
-                $fileLimit = array_map(function($item) {
-                    return $this->opfDir.'/'.$item['href'];
-                }, $mainfest);
+                $fileLimit = array_column($mainfest, 'href');
             }
         } else if (is_array($fileType)) {
             $fileLimit = $fileType;
@@ -497,11 +528,9 @@ class EpubParser {
             $this->zipArchive->extractTo($path, array_values($fileLimit));
         }
 
-        $needReplacePath = array_values(array_map(function($item) {
-            return $this->opfDir.'/'.$item['href'];
-        }, array_filter($this->manifest, function($item) {
+        $needReplacePath = array_values(array_column(array_filter($this->manifest, function($item) {
             return $item['media-type'] === 'application/xhtml+xml';
-        })));
+        }),'href'));
 
 
         if (!is_null($fileLimit)) {
@@ -509,7 +538,7 @@ class EpubParser {
         }
 
         foreach ($needReplacePath as $file) {
-            $this->_replaceExtractFile( implode(DIRECTORY_SEPARATOR, [rtrim($path, '/'), $file]));
+            $this->_replaceExtractFile( implode($this->directorySeparator, [rtrim($path, $this->directorySeparator), $file]));
         }
 
         $this->close();
@@ -532,7 +561,7 @@ class EpubParser {
 
                 $element = null;
                 foreach ($this->manifest as $key => $value) {
-                    $mainestUrl = $this->opfDir.'/'.$value['href'];
+                    $mainestUrl = $value['href'];
                     if ($mainestUrl === $img) {
                         $element = $value;
                         break;
