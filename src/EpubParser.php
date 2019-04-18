@@ -374,7 +374,7 @@ class EpubParser {
         }, $result);
 
         $result = preg_replace_callback('/(\shref\s*=\s*["\']?)([^"\'\s>]*?)(["\'\s>])/', function($matches) use($path){
-            $linkparts = isset($matches[2]) ?: explode($matches[2], "#");
+            $linkparts = isset($matches[2]) ? [] : explode($matches[2], "#");
             $link      = (new \ArrayObject($path))->getArrayCopy();
             $link[]    = array_shift($linkparts) ?? '';
             $link      = trim(implode($link, '/'));
