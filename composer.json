@@ -27,7 +27,7 @@
     "minimum-stability": "dev",
     "require": {
         "php":">=7.0.0",
-        "erusev/parsedown": "dev-master"
+        "erusev/parsedown": "1.7.1"
     },
     "scripts": {
         "test": [
