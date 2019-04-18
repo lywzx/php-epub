@@ -162,7 +162,12 @@ class EpubParser {
     private function _getDcData() {
         $buf = $this->_getFileContentFromZipArchive($this->opfFile);
         $opfContents = simplexml_load_string($buf);
-        $this->dcElements = (array) $opfContents->metadata->children('dc', true);
+        $this->dcElements = array_map(function($item) {
+            if (is_array($item) && empty($item)) {
+                return '';
+            }
+            return $item;
+        },json_decode(json_encode($opfContents->metadata->children('dc', true), JSON_UNESCAPED_UNICODE), true));
     }
 
     /**
