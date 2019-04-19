@@ -182,7 +182,7 @@ class EpubParser {
         foreach ($opfContents->manifest->item AS $item) {
             $attr = $item->attributes();
             $id = (string) $attr->id;
-            $this->manifest[$id]['href'] = Util::directoryConcat($this->opfDir, ((string) $attr->href));
+            $this->manifest[$id]['href'] = Util::directoryConcat($this->opfDir, urldecode((string) $attr->href));
             $this->manifest[$id]['media-type'] = (string) $attr->{'media-type'};
             $iManifest++;
         }
@@ -492,10 +492,11 @@ class EpubParser {
             $this->open();
             try {
                 $result = $this->_getFileContentFromZipArchive( $file['href']);
+                $this->close();
+                return $result;
             } catch (\Exception $e) {
+
             }
-            $this->close();
-            return $result;
         }
         throw new \Exception("file not found");
     }
