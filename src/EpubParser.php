@@ -89,6 +89,7 @@ class EpubParser {
      */
     public function __sleep()
     {
+        // TODO: add some attribute to sleep
         return [];
     }
 
@@ -181,7 +182,7 @@ class EpubParser {
         foreach ($opfContents->manifest->item AS $item) {
             $attr = $item->attributes();
             $id = (string) $attr->id;
-            $this->manifest[$id]['href'] = $this->getFileRealPath((string) $attr->href);
+            $this->manifest[$id]['href'] = Util::directoryConcat($this->opfDir, urldecode((string) $attr->href));
             $this->manifest[$id]['media-type'] = (string) $attr->{'media-type'};
             $iManifest++;
         }
@@ -215,7 +216,7 @@ class EpubParser {
             foreach ($navPoints as $navPoint) {
                 $attributes = $navPoint->attributes();
                 $payOrder = (string) $attributes['playOrder'];
-                $src = $this->getFileRealPath((string) $navPoint->content->attributes());
+                $src = Util::directoryConcat($this->opfDir, (string) $navPoint->content->attributes());
                 $explodeUrl = strpos($src, "#") ? explode("#", $src) : [$src, null];
                 $ret[$payOrder] = [
                     'id' => (string) $attributes['id'],
@@ -371,6 +372,7 @@ class EpubParser {
      */
     public function getChapter($chapterId) {
         $result = $this->getChapterRaw($chapterId);
+        $chapterHref = $this->getManifest($chapterId)['href'];
 
         $path = explode($this->directorySeparator, $this->opfDir);
 
@@ -394,10 +396,8 @@ class EpubParser {
         }, $result);
 
         // replace images
-        $result = preg_replace_callback('/(\ssrc\s*=\s*["\']?)([^"\'\s>]*?)(["\'\s>])/', function($matches) use($path){
-            $img = (new \ArrayObject($path))->getArrayCopy();
-            $img[] = $matches[2];
-            $img = implode('/', $img);
+        $result = preg_replace_callback('/(\ssrc\s*=\s*["\']?)([^"\'\s>]*?)(["\'\s>])/', function($matches) use($chapterHref){
+            $img = Util::directoryConcat($chapterHref, $matches[2], True);
 
             $element = null;
             foreach ($this->manifest as $key => $value) {
@@ -492,10 +492,11 @@ class EpubParser {
             $this->open();
             try {
                 $result = $this->_getFileContentFromZipArchive( $file['href']);
+                $this->close();
+                return $result;
             } catch (\Exception $e) {
+
             }
-            $this->close();
-            return $result;
         }
         throw new \Exception("file not found");
     }
@@ -543,7 +544,7 @@ class EpubParser {
         }
 
         foreach ($needReplacePath as $file) {
-            $this->_replaceExtractFile( implode($this->directorySeparator, [rtrim($path, $this->directorySeparator), $file]));
+            $this->_replaceExtractFile( implode($this->directorySeparator, [rtrim($path, $this->directorySeparator), $file]), $file);
         }
 
         $this->close();
@@ -552,17 +553,15 @@ class EpubParser {
 
     /**
      * @param $realPath
+     * @param $fileBasePath
      * @throws \Exception
      */
-    private function _replaceExtractFile($realPath) {
+    private function _replaceExtractFile($realPath, $fileBasePath) {
         if ( file_exists($realPath) && is_file($realPath) && is_readable($realPath) && is_writable($realPath)) {
             $str = file_get_contents($realPath);
-            $path = explode('/', $this->opfDir);
 
-            $str = preg_replace_callback('/(\ssrc\s*=\s*["\']?)([^"\'\s>]*?)(["\'\s>])/', function($matches) use($path){
-                $img = (new \ArrayObject($path))->getArrayCopy();
-                $img[] = $matches[2];
-                $img = implode('/', $img);
+            $str = preg_replace_callback('/(\ssrc\s*=\s*["\']?)([^"\'\s>]*?)(["\'\s>])/', function($matches) use($fileBasePath){
+                $img = Util::directoryConcat($fileBasePath, $matches[2], True);
 
                 $element = null;
                 foreach ($this->manifest as $key => $value) {
@@ -583,4 +582,5 @@ class EpubParser {
             throw new \Exception("change $realPath error");
         }
     }
+
 }
