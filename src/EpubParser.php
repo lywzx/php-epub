@@ -383,8 +383,6 @@ class EpubParser {
         $result = $this->getChapterRaw($chapterId);
         $chapterHref = $this->getManifest($chapterId)['href'];
 
-        $path = explode($this->directorySeparator, $this->opfDir);
-
         // remove linebreaks (no multi line matches in JS regex!)
         $result = preg_replace("/\r?\n/", "\u0000", $result);
 
@@ -405,7 +403,7 @@ class EpubParser {
         }, $result);
 
         // replace images
-        $result = preg_replace_callback('/(\ssrc\s*=\s*["\']?)([^"\'\s>]*?)(["\'\s>])/', function($matches) use($chapterHref){
+        $result = preg_replace_callback('/(\s(?:xlink:href|src)\s*=\s*["\']?)([^"\'\s>]*?)(["\'\s>])/', function($matches) use($chapterHref){
             $img = Util::directoryConcat($chapterHref, $matches[2], True);
 
             $element = null;
@@ -422,17 +420,17 @@ class EpubParser {
             return '';
         }, $result);
 
-        $result = preg_replace_callback('/(\shref\s*=\s*["\']?)([^"\'\s>]*?)(["\'\s>])/', function($matches) use($path){
-            $linkparts = isset($matches[2]) ? [] : explode($matches[2], "#");
-            $link      = (new \ArrayObject($path))->getArrayCopy();
-            $link[]    = array_shift($linkparts) ?? '';
-            $link      = trim(implode($link, '/'));
+        $result = preg_replace_callback('/(\shref\s*=\s*["\']?)([^"\'\s>]*?)(["\'\s>])/', function($matches) use($chapterHref){
+            $linkparts = isset($matches[2]) ? explode("#", Util::directoryConcat($chapterHref, $matches[2], true)): [];
+            $link    = array_shift($linkparts) ?? '';
             $element   = null;
 
-            foreach ($this->manifest as $key => $value) {
-                if(explode('#', $value['href'])[0] === $link) {
-                    $element = $value;
-                    break;
+            if ($link) {
+                foreach ($this->manifest as $key => $value) {
+                    if(explode('#', $value['href'])[0] === $link) {
+                        $element = $value;
+                        break;
+                    }
                 }
             }
 
@@ -442,7 +440,7 @@ class EpubParser {
 
             // include only images from manifest
             if ($element) {
-                return $matches[1].$this->linkWebRoot.$element['id']."/".$link.$matches[3];
+                return $matches[1].$this->linkWebRoot."/".$link.$matches[3];
             }
             return $matches[1].$matches[2].$matches[3];
         }, $result);
@@ -491,7 +489,7 @@ class EpubParser {
     }
 
     /**
-     * @param $fileId
+     * @param $fileId string
      * @return string
      * @throws \Exception
      */
@@ -511,7 +509,7 @@ class EpubParser {
     }
 
     /**
-     * @param $path the epub file extract destination
+     * @param string $path the epub file extract destination
      * @param null|array|string $fileType file mimetype will extract or except
      * @param bool $except
      * @throws \Exception
@@ -569,7 +567,9 @@ class EpubParser {
         if ( file_exists($realPath) && is_file($realPath) && is_readable($realPath) && is_writable($realPath)) {
             $str = file_get_contents($realPath);
 
-            $str = preg_replace_callback('/(\ssrc\s*=\s*["\']?)([^"\'\s>]*?)(["\'\s>])/', function($matches) use($fileBasePath){
+
+            // replace image url
+            $str = preg_replace_callback('/(\s(?:xlink:href|src)\s*=\s*["\']?)([^"\'\s>]*?)(["\'\s>])/', function($matches) use($fileBasePath){
                 $img = Util::directoryConcat($fileBasePath, $matches[2], True);
 
                 $element = null;
@@ -584,6 +584,33 @@ class EpubParser {
                     return $matches[1].$this->imageWebRoot.'/'.$img.$matches[3];
                 }
                 return '';
+            }, $str);
+
+
+            // replace link href
+            $str = preg_replace_callback('/(\shref\s*=\s*["\']?)([^"\'\s>]*?)(["\'\s>])/', function($matches) use($fileBasePath){
+                $linkparts = isset($matches[2]) ? explode("#", Util::directoryConcat($fileBasePath, $matches[2], true)): [];
+                $link    = array_shift($linkparts) ?? '';
+                $element   = null;
+
+                if ($link) {
+                    foreach ($this->manifest as $key => $value) {
+                        if(explode('#', $value['href'])[0] === $link) {
+                            $element = $value;
+                            break;
+                        }
+                    }
+                }
+
+                if (count($linkparts)) {
+                    $link .= '#'.implode( '#',$linkparts);
+                }
+
+                // include only images from manifest
+                if ($element) {
+                    return $matches[1].$this->linkWebRoot."/".$link.$matches[3];
+                }
+                return $matches[1].$matches[2].$matches[3];
             }, $str);
 
             file_put_contents($realPath, $str);
