@@ -269,6 +269,15 @@ class EpubParser {
         return $buf;
     }
 
+
+    /**
+     * get ebook spine file id
+     * @return array
+     */
+    public function getSpine() {
+        return $this->spine;
+    }
+
     /**
      * Get the specified manifest item
      * @param string $item The manifest ID
