@@ -404,7 +404,7 @@ class EpubParser {
 
         // replace images
         $result = preg_replace_callback('/(\s(?:xlink:href|src)\s*=\s*["\']?)([^"\'\s>]*?)(["\'\s>])/', function($matches) use($chapterHref){
-            $img = Util::directoryConcat($chapterHref, $matches[2], True);
+            $img = Util::directoryConcat($chapterHref, urldecode($matches[2]), True);
 
             $element = null;
             foreach ($this->manifest as $key => $value) {
@@ -421,7 +421,7 @@ class EpubParser {
         }, $result);
 
         $result = preg_replace_callback('/(\shref\s*=\s*["\']?)([^"\'\s>]*?)(["\'\s>])/', function($matches) use($chapterHref){
-            $linkparts = isset($matches[2]) ? explode("#", Util::directoryConcat($chapterHref, $matches[2], true)): [];
+            $linkparts = isset($matches[2]) ? explode("#", Util::directoryConcat($chapterHref, urldecode($matches[2]), true)): [];
             $link    = array_shift($linkparts) ?? '';
             $element   = null;
 
@@ -570,7 +570,7 @@ class EpubParser {
 
             // replace image url
             $str = preg_replace_callback('/(\s(?:xlink:href|src)\s*=\s*["\']?)([^"\'\s>]*?)(["\'\s>])/', function($matches) use($fileBasePath){
-                $img = Util::directoryConcat($fileBasePath, $matches[2], True);
+                $img = Util::directoryConcat($fileBasePath, urldecode($matches[2]), True);
 
                 $element = null;
                 foreach ($this->manifest as $key => $value) {
@@ -589,7 +589,7 @@ class EpubParser {
 
             // replace link href
             $str = preg_replace_callback('/(\shref\s*=\s*["\']?)([^"\'\s>]*?)(["\'\s>])/', function($matches) use($fileBasePath){
-                $linkparts = isset($matches[2]) ? explode("#", Util::directoryConcat($fileBasePath, $matches[2], true)): [];
+                $linkparts = isset($matches[2]) ? explode("#", Util::directoryConcat($fileBasePath, urldecode($matches[2]), true)): [];
                 $link    = array_shift($linkparts) ?? '';
                 $element   = null;
 
