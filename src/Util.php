@@ -20,7 +20,7 @@ class Util
      */
     static function directoryConcat(string $base, string $relativeFile, bool $baseIsFile = false): string {
         if ($baseIsFile) {
-            $base = preg_replace('#(?:\/[^/]*)$#', '', $base);
+            $base = preg_replace('#(?:\/?[^/]*)$#', '', $base);
         }
         $filter = function($item) {
             return !($item === '' || $item === '.');

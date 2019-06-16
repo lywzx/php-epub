@@ -44,4 +44,9 @@ class UtilTest extends \PHPUnit\Framework\TestCase
     public function testDirectoryConcatWithDeepBackAnd() {
         $this->assertEquals('OEBPS/Images/1.24.png', Util::directoryConcat('OEBPS/Text/1.2.xhtml', '../Images/1.24.png', true));
     }
+
+
+    public function testDirectoryWithContent() {
+        $this->assertEquals('1.24.png', Util::directoryConcat('1.2.xhtml', '1.24.png', true));
+    }
 }
