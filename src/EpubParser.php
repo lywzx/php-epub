@@ -215,10 +215,10 @@ class EpubParser {
             $ret = [];
             foreach ($navPoints as $navPoint) {
                 $attributes = $navPoint->attributes();
-                $payOrder = (string) $attributes['playOrder'];
+                // $payOrder = (string) $attributes['playOrder'];
                 $src = Util::directoryConcat($this->opfDir, (string) $navPoint->content->attributes());
                 $explodeUrl = strpos($src, "#") ? explode("#", $src) : [$src, null];
-                $ret[$payOrder] = [
+                $current = [
                     'id' => (string) $attributes['id'],
                     'name' => (string) $navPoint->navLabel->text,
                     'file_name' => $explodeUrl[0],
@@ -227,8 +227,9 @@ class EpubParser {
                 ];
 
                 if (isset($navPoint->navPoint) && !empty($navPoint->navPoint)) {
-                    $ret[$payOrder]['children'] = $callback($navPoint->navPoint);
+                    $current['children'] = $callback($navPoint->navPoint);
                 }
+                $ret[] = $current;
             }
             return $ret;
         };
